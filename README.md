@@ -1,5 +1,6 @@
-gcp-console-colorize
+console-colorize
 ===
+yfuruyama/gcp-console-colorize をforkして改変したもの.
 
 A chrome extension to change the header color for GCP console.
 
