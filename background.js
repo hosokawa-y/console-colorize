@@ -5,7 +5,15 @@
       active: true,
       currentWindow: true
     }, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {}, function(response) {});
+        if (!tabs.length) {
+          return;
+        }
+        chrome.tabs.sendMessage(tabs[0].id, {}, function(response) {
+          // The content script only runs on the console, and it never calls
+          // sendResponse, so both "receiving end does not exist" and "message
+          // port closed" are expected here. Read lastError to mark it handled.
+          void chrome.runtime.lastError;
+        });
     });
   });
 })();

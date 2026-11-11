@@ -47,11 +47,21 @@ GCP コンソールは SPA なので、プロジェクトを切り替えても c
 { conditions: [ { pattern: "my-prod-.*", color: { r: 32, g: 100, b: 227 } } ] }
 ```
 
-`pattern` は URL の `project` クエリパラメータに対して `String.prototype.match` で評価される（= 正規表現。部分一致）。配列の **先頭から順に評価し、最初にマッチした条件の色を適用して終了**。どれにもマッチしなければ `backgroundColor` を `null` に戻して GCP 本来の色に戻す。
+`pattern` は URL の `project` クエリパラメータに対して `String.prototype.match` で評価される（= 正規表現。部分一致）。配列の **先頭から順に評価し、最初にマッチした条件の色を適用して終了**。どれにもマッチしなければ `background-color` を削除して GCP 本来の色に戻す。
+
+設定は拡張機能を再読み込みしても保持される。消えるのは拡張機能を削除したときと、unpacked のディレクトリを移動・改名したとき（未パッケージ拡張機能の ID は絶対パスから導出されるため、別の拡張機能として扱われる）。
 
 ### 壊れやすい箇所: ヘッダー要素の特定
 
-`main.js` の `getCurrentHeader()` は複数のセレクタを `||` で繋いだフォールバックチェーンになっている。GCP コンソールの DOM は定期的に変わるため、拡張が効かなくなる原因はほぼここ。**既存のセレクタを置き換えるのではなくチェーンの末尾に追加する**（古い UI が残っている環境があるため）。`matches` の URL も同様に、新しいコンソールの FQDN が出てきたら追加する。現在の対象は `console.cloud.google.com` と `console.cloud.google`（Workforce Identity 連携のコンソール）。
+`main.js` の `HEADER_SELECTORS` は複数のセレクタのフォールバックリスト。GCP コンソールの DOM は定期的に変わるため、拡張が効かなくなる原因はほぼここ。扱ううえで前提になること:
+
+- **新しいセレクタはリストの先頭に追加する**（末尾ではない）。旧 UI 向けのセレクタ（`.cfc-platform-bar-container` など）は現行 UI でも背景を描画しない別要素にマッチしてしまい、先に評価されると探索がそこで止まって「見つかったのに色が変わらない」状態になる。旧セレクタは古い環境のために残してあるだけなので、常に末尾側に置く。
+- **狙うのは背景を実際に描画している要素**で、バーのルート要素ではない。現行 UI は `one-cloud-bar > pcc-platform-bar > cfc-latency-tracking-boundary > cfc-platform-bar > div` の末尾の `div` が描画する。DevTools で候補要素の `background-color` を手で変えて、反映される要素を特定してからセレクタを足すこと。
+- 適用は `setProperty(..., 'important')`。コンソール側のスタイルが `!important` のため。
+- ヘッダーは遅延描画されるので `withHeader()` がポーリングする（300ms × 50 回）。Shadow DOM に入る可能性にも `collectRoots()` で対応済み。
+- 調査時は content script のログ（`console-colorize: ...`）を GCP コンソールページ側の DevTools で見る。`chrome://extensions` のエラー欄には出ない。
+
+`matches` の URL も同様に、新しいコンソールの FQDN が出てきたら追加する。現在の対象は `console.cloud.google.com` と `console.cloud.google`（Workforce Identity 連携のコンソール）。
 
 ## リリース
 
